@@ -4,6 +4,7 @@ import Codify.result.service.ResultService;
 import Codify.result.web.dto.CompareResponseDto;
 import Codify.result.web.dto.PlagiarismJudgeResponseDto;
 import Codify.result.web.dto.SaveResultRequestDto;
+import Codify.result.web.dto.ResultGraphDto;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,11 +25,11 @@ public class ResultController {
             operationId = "compareStudentSubmissions",
             summary = "두 학생의 제출물 비교 결과 조회",
             description = """
-            두 학생의 제출물을 비교한 결과를 반환합니다.
-            - studentFromId, studentToId: 비교할 학생 ID
-            - week: 주차 정보
-            - S3에서 실제 코드 파일과 함께 표절 의심라인 반환
-            """
+                    두 학생의 제출물을 비교한 결과를 반환합니다.
+                    - studentFromId, studentToId: 비교할 학생 ID
+                    - week: 주차 정보
+                    - S3에서 실제 코드 파일과 함께 표절 의심라인 반환
+                    """
     )
     @GetMapping("/assignments/{assignmentId}/compare")
     public ResponseEntity<CompareResponseDto> compareStudents(
@@ -39,21 +40,11 @@ public class ResultController {
             @RequestParam("week") Integer week
     ) {
         final UUID userUuid = UUID.fromString(userUuidHeader);
-        
+
         CompareResponseDto compareResult = resultService.getCompareResult(userUuid, assignmentId, studentFromId, studentToId, week);
         return ResponseEntity.ok(compareResult);
     }
 
-    @Operation(
-            operationId = "judgePlagiarism",
-            summary = "표절 판단 결과 조회",
-            description = """
-            두 학생의 제출물에 대한 표절 판단 결과를 반환합니다.
-            - studentFromId, studentToId: 비교할 학생 ID
-            - week: 주차 정보
-            - assignmentId: 과제 ID
-            """
-    )
     @GetMapping("/assignments/{assignmentId}/judge")
     public ResponseEntity<PlagiarismJudgeResponseDto> judgePlagiarism(
             @RequestHeader("USER-UUID") String userUuidHeader,
@@ -63,7 +54,7 @@ public class ResultController {
             @RequestParam("week") Integer week
     ) {
         final UUID userUuid = UUID.fromString(userUuidHeader);
-        
+
         PlagiarismJudgeResponseDto judgeResult = resultService.getPlagiarismJudgeResult(userUuid, assignmentId, studentFromId, studentToId, week);
         return ResponseEntity.ok(judgeResult);
     }
@@ -92,4 +83,12 @@ public class ResultController {
         resultService.saveResult(userUuid, assignmentId, week, saveResultRequestDto);
         return ResponseEntity.ok().build();
     }
+
+    @GetMapping("/graph")
+    public ResponseEntity<ResultGraphDto> resultGraph
+            (@RequestHeader("USER-UUID") String userUuidHeader, @RequestParam Long assignmentId,@RequestParam Long week) {
+        final UUID userUuid = UUID.fromString(userUuidHeader);
+        return ResponseEntity.ok(resultService.resultGraph(userUuid, assignmentId, week));
+    }
+
 }

@@ -1,10 +1,14 @@
 package Codify.result.repository;
 
 import Codify.result.domain.Submission;
+import Codify.result.web.dto.StudentResponseDto;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
 public interface SubmissionRepository extends JpaRepository<Submission, Long> {
@@ -15,4 +19,9 @@ public interface SubmissionRepository extends JpaRepository<Submission, Long> {
     
     // 학생의 특정 과제, 주차 제출물 조회
     Optional<Submission> findByAssignmentIdAndWeekAndStudentId(Long assignmentId, Integer week, Long studentId);
+
+    @Query("SELECT DISTINCT s.studentId, s.studentName " +
+            "FROM Submission s " +
+            "WHERE s.assignmentId = :assignmentId AND s.week = :week")
+    List<StudentResponseDto> findStudentData(Long assignmentId, Long week);
 }
