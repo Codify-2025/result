@@ -3,6 +3,7 @@ package Codify.result.web.controller;
 import Codify.result.service.ResultService;
 import Codify.result.web.dto.CompareResponseDto;
 import Codify.result.web.dto.PlagiarismJudgeResponseDto;
+import Codify.result.web.dto.SaveResultRequestDto;
 import Codify.result.web.dto.ResultGraphDto;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
@@ -57,6 +58,32 @@ public class ResultController {
         PlagiarismJudgeResponseDto judgeResult = resultService.getPlagiarismJudgeResult(userUuid, assignmentId, studentFromId, studentToId, week);
         return ResponseEntity.ok(judgeResult);
     }
+
+    @Operation(
+            operationId = "saveResult",
+            summary = "표절 결과 저장",
+            description = """
+            표절 검사 결과를 저장합니다.
+            - assignmentId: 과제 ID (Path Variable)
+            - week: 주차 정보 (Request Parameter)
+            - USER-UUID: 사용자 UUID (Request Header)
+            - plagiarize: 표절 여부 (true: 표절, false: 표절 아님)
+            - student1, student2: 비교 대상 학생들의 정보
+            """
+    )
+    @PostMapping("/assignments/{assignmentId}/save")
+    public ResponseEntity<Void> saveResult(
+            @RequestHeader("USER-UUID") String userUuidHeader,
+            @PathVariable Long assignmentId,
+            @RequestParam("week") Integer week,
+            @RequestBody SaveResultRequestDto saveResultRequestDto
+    ) {
+        final UUID userUuid = UUID.fromString(userUuidHeader);
+        
+        resultService.saveResult(userUuid, assignmentId, week, saveResultRequestDto);
+        return ResponseEntity.ok().build();
+    }
+
     @GetMapping("/graph")
     public ResponseEntity<ResultGraphDto> resultGraph
             (@RequestHeader("USER-UUID") String userUuidHeader, @RequestParam Long assignmentId,@RequestParam Long week) {

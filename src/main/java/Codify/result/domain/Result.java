@@ -38,4 +38,11 @@ public class Result {
 
     @Column(name = "assignmentId")
     private Long assignmentId;
+
+    @Column(name = "plagiarismJudge")
+    private Boolean plagiarismJudge;
+
+    public void updatePlagiarismJudge(Boolean plagiarismJudge) {
+        this.plagiarismJudge = plagiarismJudge;
+    }
 }

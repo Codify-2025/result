@@ -2,11 +2,15 @@ package Codify.result.service;
 
 import Codify.result.domain.Codeline;
 import Codify.result.domain.Result;
+import Codify.result.domain.Submission;
 import Codify.result.exception.*;
 import Codify.result.repository.CodelineRepository;
 import Codify.result.repository.ResultRepository;
 import Codify.result.repository.SubmissionRepository;
 import Codify.result.repository.UserRepository;
+import Codify.result.web.dto.CompareResponseDto;
+import Codify.result.web.dto.PlagiarismJudgeResponseDto;
+import Codify.result.web.dto.SaveResultRequestDto;
 import Codify.result.web.dto.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -172,6 +176,7 @@ public class ResultService {
                         .build())
                 .build();
     }
+    
     private Result findResultBidirectional(Long studentFromId, Long studentToId, Long assignmentId) {
         return resultRepository.findByStudentFromIdAndStudentToIdAndAssignmentId(
                         studentFromId, studentToId, assignmentId)
@@ -179,6 +184,74 @@ public class ResultService {
                         studentToId, studentFromId, assignmentId))
                 .orElseThrow(() -> new ComparisonResultNotFoundException());
     }
+
+    @Transactional
+    public void saveResult(UUID userUuid, Long assignmentId, Integer week, SaveResultRequestDto saveResultRequestDto) {
+        // 사용자 검증
+        if (userUuid == null) {
+            throw new UnauthenticatedException();
+        }
+        if (!userRepository.existsById(userUuid)) {
+            throw new UserNotFoundException();
+        }
+        
+        // 주차 검증
+        if (week == null || week <= 0) {
+            throw new InvalidWeekParameterException();
+        }
+        
+        // 주차 존재 여부 확인
+        if (!submissionRepository.existsByAssignmentIdAndWeek(assignmentId, week)) {
+            throw new WeekNotFoundException();
+        }
+        
+        // student ID 검증
+        Long studentFromId = saveResultRequestDto.getStudent1().getId();
+        Long studentToId = saveResultRequestDto.getStudent2().getId();
+        
+        if (studentFromId == null || studentFromId <= 0 || studentToId == null || studentToId <= 0) {
+            throw new StudentNotFoundException();
+        }
+        
+        // 동일한 학생끼리 비교 방지
+        if (studentFromId.equals(studentToId)) {
+            throw new SameStudentComparisonException();
+        }
+        
+        // 실제 제출물 데이터 검증
+        validateSubmissionData(assignmentId, week, saveResultRequestDto.getStudent1(), studentFromId);
+        validateSubmissionData(assignmentId, week, saveResultRequestDto.getStudent2(), studentToId);
+        
+        // Result 테이블에서 해당 비교 결과 찾기
+        Result result = findResultBidirectional(studentFromId, studentToId, assignmentId);
+        
+        // plagiarismJudge 컬럼 업데이트
+        result.updatePlagiarismJudge(saveResultRequestDto.isPlagiarize());
+        resultRepository.save(result);
+    }
+
+    private void validateSubmissionData(Long assignmentId, Integer week, SaveResultRequestDto.StudentInfo studentInfo, Long studentId) {
+        // 실제 제출물 조회
+        Submission actualSubmission = submissionRepository.findByAssignmentIdAndWeekAndStudentId(assignmentId, week, studentId)
+                .orElseThrow(() -> new StudentSubmissionNotFoundException());
+        
+        // 파일명 검증
+        if (!actualSubmission.getFileName().equals(studentInfo.getFileName())) {
+            throw new IllegalArgumentException();
+        }
+        
+        // 학생명 검증
+        if (!actualSubmission.getStudentName().equals(studentInfo.getName())) {
+            throw new IllegalArgumentException();
+        }
+        
+        // 제출시간 검증 (날짜 포맷 고려)
+        String actualSubmissionTime = actualSubmission.getSubmissionDate().toString();
+        if (!actualSubmissionTime.contains(studentInfo.getSubmittedTime().substring(0, 10))) { // 날짜 부분만 비교
+            throw new IllegalArgumentException();
+        }
+    }
+}
 
     @Transactional(readOnly = true)
     public ResultGraphDto resultGraph(UUID userUuid, Long assignmentId, Long week) {
