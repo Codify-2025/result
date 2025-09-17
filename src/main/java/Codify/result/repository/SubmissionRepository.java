@@ -12,4 +12,7 @@ public interface SubmissionRepository extends JpaRepository<Submission, Long> {
     
     // 특정 과제와 주차에 대한 제출 존재 여부 확인
     boolean existsByAssignmentIdAndWeek(Long assignmentId, Integer week);
+    
+    // 학생의 특정 과제, 주차 제출물 조회
+    Optional<Submission> findByAssignmentIdAndWeekAndStudentId(Long assignmentId, Integer week, Long studentId);
 }
