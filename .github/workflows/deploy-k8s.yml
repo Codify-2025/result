@@ -80,7 +80,7 @@ jobs:
           else
             git commit -m "Deploy: Update result image to ${{ needs.build-and-push.outputs.image_tag }}"
             git push
-            echo "deployed=false" >> $GITHUB_OUTPUT
+            echo "deployed=true" >> $GITHUB_OUTPUT
           fi
       - name: 4. Discord Notification
         if: steps.commit_step.outputs.deployed == 'true'
