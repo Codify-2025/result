@@ -12,11 +12,13 @@ import Codify.result.web.dto.CompareResponseDto;
 import Codify.result.web.dto.PlagiarismJudgeResponseDto;
 import Codify.result.web.dto.SaveResultRequestDto;
 import Codify.result.web.dto.*;
+import Codify.result.web.dto.topology.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.IntStream;
@@ -251,7 +253,6 @@ public class ResultService {
             throw new IllegalArgumentException();
         }
     }
-}
 
     @Transactional(readOnly = true)
     public ResultGraphDto resultGraph(UUID userUuid, Long assignmentId, Long week) {
@@ -286,5 +287,84 @@ public class ResultService {
                 filterPairsGroupDto
         );
         return resultGraphDto;
+    }
+
+    @Transactional(readOnly = true)
+    public TopologyResponseDto getTopology(UUID userUuid, Long assignmentId, Integer week) {
+        // 4. 특정 과제와 주차의 모든 제출물과 유사도 결과 조회
+        List<Submission> submissions = submissionRepository.findTopologySubmissions(assignmentId, week);
+        List<Result> results = resultRepository.findTopologyResults(userUuid, assignmentId, Long.valueOf(week));
+
+        // 5. 각 학생의 노드 데이터 생성
+        List<TopologyNodeDto> nodes = submissions.stream().map(submission -> {
+            // 해당 학생과 관련된 유사도 결과들을 찾아서 관련 파일 정보 구성
+            List<RelatedFileDto> relatedFiles = results.stream()
+                    .filter(result -> result.getStudentFromId().equals(submission.getStudentId()) ||
+                                    result.getStudentToId().equals(submission.getStudentId()))
+                    .map(result -> {
+                        // 해당 학생이 from인지 to인지에 따라 상대방 파일명을 찾음
+                        Long partnerId = result.getStudentFromId().equals(submission.getStudentId()) 
+                            ? result.getStudentToId() 
+                            : result.getStudentFromId();
+                        
+                        String partnerFileName = submissions.stream()
+                                .filter(s -> s.getStudentId().equals(partnerId))
+                                .map(Submission::getFileName)
+                                .findFirst()
+                                .orElse("");
+                        
+                        return new RelatedFileDto(partnerFileName, result.getAccumulateResult());
+                    })
+                    .toList();
+
+            return new TopologyNodeDto(
+                    submission.getStudentId().toString(),
+                    submission.getStudentName(),
+                    submission.getFileName(),
+                    submission.getSubmissionDate(),
+                    relatedFiles
+            );
+        }).toList();
+
+        // 6. 각 유사도 결과의 엣지 데이터 생성 
+        List<TopologyEdgeDto> edges = results.stream().map(result -> {
+            // from, to 학생의 제출시간 찾기
+            LocalDateTime fromTime = submissions.stream()
+                    .filter(s -> s.getStudentId().equals(result.getStudentFromId()))
+                    .map(Submission::getSubmissionDate)
+                    .findFirst().orElse(null);
+            
+            LocalDateTime toTime = submissions.stream()
+                    .filter(s -> s.getStudentId().equals(result.getStudentToId()))
+                    .map(Submission::getSubmissionDate)
+                    .findFirst().orElse(null);
+
+            // 파일명 조합 생성
+            String fromFileName = submissions.stream()
+                    .filter(s -> s.getStudentId().equals(result.getStudentFromId()))
+                    .map(Submission::getFileName)
+                    .findFirst().orElse("");
+            
+            String toFileName = submissions.stream()
+                    .filter(s -> s.getStudentId().equals(result.getStudentToId()))
+                    .map(Submission::getFileName)
+                    .findFirst().orElse("");
+
+            String comparedFiles = fromFileName + " - " + toFileName;
+
+            // 히스토리 생성 (현재는 하나만 있지만 리스트 형태)
+            List<HistoryDto> histories = List.of(new HistoryDto(fromTime, toTime));
+
+            return new TopologyEdgeDto(
+                    result.getStudentFromId() + "-" + result.getStudentToId(),
+                    result.getStudentFromId().toString(),
+                    result.getStudentToId().toString(),
+                    result.getAccumulateResult(),
+                    comparedFiles,
+                    histories
+            );
+        }).toList();
+
+        return new TopologyResponseDto(nodes, edges);
     }
 }
