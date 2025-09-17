@@ -7,8 +7,7 @@ import Codify.result.repository.CodelineRepository;
 import Codify.result.repository.ResultRepository;
 import Codify.result.repository.SubmissionRepository;
 import Codify.result.repository.UserRepository;
-import Codify.result.web.dto.CompareResponseDto;
-import Codify.result.web.dto.PlagiarismJudgeResponseDto;
+import Codify.result.web.dto.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -22,6 +21,8 @@ import java.util.stream.IntStream;
 @RequiredArgsConstructor
 @Slf4j
 public class ResultService {
+
+    private static  final double SIMILARITY_THRESHOLD = 0.8;
 
     private final ResultRepository resultRepository;
     private final CodelineRepository codelineRepository;
@@ -40,7 +41,7 @@ public class ResultService {
         if (!userRepository.existsById(userUuid)) {
             throw new UserNotFoundException();
         }
-        
+
         // 기본 파라미터 검증
         if (studentFromId == null || studentFromId <= 0 || studentToId == null || studentToId <= 0) {
             throw new StudentNotFoundException();
@@ -48,12 +49,12 @@ public class ResultService {
         if (week == null || week <= 0) {
             throw new InvalidWeekParameterException();
         }
-        
+
         // 동일한 학생끼리 비교 방지
         if (studentFromId.equals(studentToId)) {
             throw new SameStudentComparisonException();
         }
-        
+
         // 주차 검증 - Submission 테이블에서 해당 과제의 해당 주차가 존재하는지 확인
         if (!submissionRepository.existsByAssignmentIdAndWeek(assignmentId, week)) {
             throw new WeekNotFoundException();
@@ -116,7 +117,7 @@ public class ResultService {
 
     @Transactional(readOnly = true)
     public PlagiarismJudgeResponseDto getPlagiarismJudgeResult(UUID userUuid, Long assignmentId, Long studentFromId, Long studentToId, Integer week) {
-        
+
         // 사용자 검증
         if (userUuid == null) {
             throw new UnauthenticatedException();
@@ -124,7 +125,7 @@ public class ResultService {
         if (!userRepository.existsById(userUuid)) {
             throw new UserNotFoundException();
         }
-        
+
         // 기본 파라미터 검증
         if (studentFromId == null || studentFromId <= 0 || studentToId == null || studentToId <= 0) {
             throw new StudentNotFoundException();
@@ -132,12 +133,12 @@ public class ResultService {
         if (week == null || week <= 0) {
             throw new InvalidWeekParameterException();
         }
-        
+
         // 동일한 학생끼리 비교 방지
         if (studentFromId.equals(studentToId)) {
             throw new SameStudentComparisonException();
         }
-        
+
         // 주차 검증 - Submission 테이블에서 해당 과제의 해당 주차가 존재하는지 확인
         if (!submissionRepository.existsByAssignmentIdAndWeek(assignmentId, week)) {
             throw new WeekNotFoundException();
@@ -177,5 +178,40 @@ public class ResultService {
                 .or(() -> resultRepository.findByStudentFromIdAndStudentToIdAndAssignmentId(
                         studentToId, studentFromId, assignmentId))
                 .orElseThrow(() -> new ComparisonResultNotFoundException());
+    }
+
+    @Transactional(readOnly = true)
+    public ResultGraphDto resultGraph(UUID userUuid, Long assignmentId, Long week) {
+    //1. 데이터베이스 조회 -> 과목,week에 해당하는 fromid, toid, accmulate 리턴
+        List<FilteredPairsDto> rawDatas = resultRepository.findByUserAndWeek(userUuid, assignmentId, week);
+
+    //2. 학생 데이터 조회 -> submission repository(dashboard참고)
+        List<StudentResponseDto> students = submissionRepository.findStudentData(assignmentId, week);
+
+    //3.그룹화 -> threshold기준값 넘는거 aboveThreshold, 넘지 않는거 belowThreshold
+        //그룹화를 하면서 동시에 total, aboveThreshold, belowThreshold 숫자 세기
+        List<FilteredPairsDto> aboveThreshold = rawDatas.stream()
+                .filter(data -> data.similarity() >= SIMILARITY_THRESHOLD).toList();
+        List<FilteredPairsDto> belowThreshold = rawDatas.stream()
+                .filter(data -> data.similarity() < SIMILARITY_THRESHOLD).toList();
+
+        FilterPairsGroupDto filterPairsGroupDto = new FilterPairsGroupDto(
+                aboveThreshold,
+                belowThreshold
+        );
+
+        FilterSummaryDto filterSummary = new FilterSummaryDto(
+                rawDatas.size(),
+                aboveThreshold.size(),
+                belowThreshold.size(),
+                SIMILARITY_THRESHOLD
+        );
+
+        ResultGraphDto resultGraphDto = new ResultGraphDto(
+                students,
+                filterSummary,
+                filterPairsGroupDto
+        );
+        return resultGraphDto;
     }
 }
