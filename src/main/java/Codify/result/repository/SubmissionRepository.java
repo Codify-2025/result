@@ -1,0 +1,15 @@
+package Codify.result.repository;
+
+import Codify.result.domain.Submission;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.Optional;
+
+@Repository
+public interface SubmissionRepository extends JpaRepository<Submission, Long> {
+    Optional<Submission> findBySubmissionId(Long submissionId);
+    
+    // 특정 과제와 주차에 대한 제출 존재 여부 확인
+    boolean existsByAssignmentIdAndWeek(Long assignmentId, Integer week);
+}
