@@ -8,6 +8,7 @@ import Codify.result.repository.ResultRepository;
 import Codify.result.repository.SubmissionRepository;
 import Codify.result.repository.UserRepository;
 import Codify.result.web.dto.CompareResponseDto;
+import Codify.result.web.dto.PlagiarismJudgeResponseDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -111,5 +112,70 @@ public class ResultService {
                 .sorted() // 오름차순 정렬
                 .boxed()
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public PlagiarismJudgeResponseDto getPlagiarismJudgeResult(UUID userUuid, Long assignmentId, Long studentFromId, Long studentToId, Integer week) {
+        
+        // 사용자 검증
+        if (userUuid == null) {
+            throw new UnauthenticatedException();
+        }
+        if (!userRepository.existsById(userUuid)) {
+            throw new UserNotFoundException();
+        }
+        
+        // 기본 파라미터 검증
+        if (studentFromId == null || studentFromId <= 0 || studentToId == null || studentToId <= 0) {
+            throw new StudentNotFoundException();
+        }
+        if (week == null || week <= 0) {
+            throw new InvalidWeekParameterException();
+        }
+        
+        // 동일한 학생끼리 비교 방지
+        if (studentFromId.equals(studentToId)) {
+            throw new SameStudentComparisonException();
+        }
+        
+        // 주차 검증 - Submission 테이블에서 해당 과제의 해당 주차가 존재하는지 확인
+        if (!submissionRepository.existsByAssignmentIdAndWeek(assignmentId, week)) {
+            throw new WeekNotFoundException();
+        }
+
+        // Result 테이블에서 결과 조회
+        Result result = findResultBidirectional(studentFromId, studentToId, assignmentId);
+
+        // 제출 정보 조회
+        SubmissionInfoService.SubmissionInfo submission1 = submissionInfoService.getSubmissionInfo(
+                result.getStudentFromId().equals(studentFromId) ? result.getSubmissionFromId() : result.getSubmissionToId()
+        );
+        SubmissionInfoService.SubmissionInfo submission2 = submissionInfoService.getSubmissionInfo(
+                result.getStudentFromId().equals(studentFromId) ? result.getSubmissionToId() : result.getSubmissionFromId()
+        );
+
+        // 유사도 퍼센트로 변환
+        Integer similarity = (int) Math.round(result.getAccumulateResult() * 100);
+
+        return PlagiarismJudgeResponseDto.builder()
+                .similarity(similarity)
+                .student1(PlagiarismJudgeResponseDto.StudentInfoDto.builder()
+                        .id(studentFromId.toString())
+                        .name(submission1.getStudentName())
+                        .submittedTime(submission1.getSubmissionTime())
+                        .build())
+                .student2(PlagiarismJudgeResponseDto.StudentInfoDto.builder()
+                        .id(studentToId.toString())
+                        .name(submission2.getStudentName())
+                        .submittedTime(submission2.getSubmissionTime())
+                        .build())
+                .build();
+    }
+    private Result findResultBidirectional(Long studentFromId, Long studentToId, Long assignmentId) {
+        return resultRepository.findByStudentFromIdAndStudentToIdAndAssignmentId(
+                        studentFromId, studentToId, assignmentId)
+                .or(() -> resultRepository.findByStudentFromIdAndStudentToIdAndAssignmentId(
+                        studentToId, studentFromId, assignmentId))
+                .orElseThrow(() -> new ComparisonResultNotFoundException());
     }
 }
