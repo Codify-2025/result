@@ -251,7 +251,6 @@ public class ResultService {
             throw new IllegalArgumentException();
         }
     }
-}
 
     @Transactional(readOnly = true)
     public ResultGraphDto resultGraph(UUID userUuid, Long assignmentId, Long week) {
