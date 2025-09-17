@@ -5,6 +5,7 @@ import Codify.result.web.dto.CompareResponseDto;
 import Codify.result.web.dto.PlagiarismJudgeResponseDto;
 import Codify.result.web.dto.SaveResultRequestDto;
 import Codify.result.web.dto.ResultGraphDto;
+import Codify.result.web.dto.topology.TopologyResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -89,6 +90,28 @@ public class ResultController {
             (@RequestHeader("USER-UUID") String userUuidHeader, @RequestParam Long assignmentId,@RequestParam Long week) {
         final UUID userUuid = UUID.fromString(userUuidHeader);
         return ResponseEntity.ok(resultService.resultGraph(userUuid, assignmentId, week));
+    }
+
+    @Operation(
+            operationId = "getTopology",
+            summary = "유사도 네트워크 토폴로지 조회",
+            description = """
+                    특정 과제와 주차의 유사도 네트워크 토폴로지를 반환합니다.
+                    - assignmentId: 과제 ID
+                    - week: 주차 정보
+                    - 각 학생을 노드로, 유사도를 엣지로 하는 네트워크 구조 반환
+                    """
+    )
+    @GetMapping("/topology")
+    public ResponseEntity<TopologyResponseDto> getTopology(
+            @RequestHeader("USER-UUID") String userUuidHeader,
+            @RequestParam("assignmentId") Long assignmentId,
+            @RequestParam("week") Integer week
+    ) {
+        final UUID userUuid = UUID.fromString(userUuidHeader);
+        
+        TopologyResponseDto topologyResult = resultService.getTopology(userUuid, assignmentId, week);
+        return ResponseEntity.ok(topologyResult);
     }
 
 }
