@@ -42,3 +42,25 @@ codify:
     source: UTC
     target: Asia/Seoul
     format: "yyyy-MM-dd HH:mm"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,beans,httptrace,metrics
+        exclude: env,configprops,heapdump
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: always
+    prometheus:
+      enabled: true
+  health:
+    readinessstate:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+  server:
+    port: ${MANAGEMENT_PORT}
