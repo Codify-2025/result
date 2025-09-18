@@ -5,7 +5,6 @@ import Codify.result.web.dto.FilteredPairsDto;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
@@ -28,5 +27,14 @@ public interface ResultRepository extends JpaRepository<Result, Long> {
                                              @Param("assignmentId") Long assignmentId,
                                              @Param("week") Long week);
 
-
+    // 토폴로지를 위한 쿼리 - 특정 과제와 주차의 모든 유사도 결과 조회
+    @Query("SELECT r FROM Result r " +
+           "INNER JOIN Assignment a ON r.assignmentId = a.assignmentId " +
+           "WHERE r.assignmentId = :assignmentId " +
+           "AND a.week = :week " +
+           "AND a.userUuid = :userUuid " +
+           "ORDER BY r.studentFromId, r.studentToId")
+    List<Result> findTopologyResults(@Param("userUuid") UUID userUuid,
+                                     @Param("assignmentId") Long assignmentId,
+                                     @Param("week") Long week);
 }

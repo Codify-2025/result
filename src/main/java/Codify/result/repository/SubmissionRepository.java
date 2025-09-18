@@ -4,11 +4,11 @@ import Codify.result.domain.Submission;
 import Codify.result.web.dto.StudentResponseDto;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 @Repository
 public interface SubmissionRepository extends JpaRepository<Submission, Long> {
@@ -24,4 +24,12 @@ public interface SubmissionRepository extends JpaRepository<Submission, Long> {
             "FROM Submission s " +
             "WHERE s.assignmentId = :assignmentId AND s.week = :week")
     List<StudentResponseDto> findStudentData(Long assignmentId, Long week);
+    
+    // 토폴로지를 위한 특정 과제와 주차의 모든 학생 제출물 조회
+    @Query("SELECT s FROM Submission s " +
+           "WHERE s.assignmentId = :assignmentId " +
+           "AND s.week = :week " +
+           "ORDER BY s.studentId")
+    List<Submission> findTopologySubmissions(@Param("assignmentId") Long assignmentId, 
+                                           @Param("week") Integer week);
 }
