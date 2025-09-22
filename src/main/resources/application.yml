@@ -38,8 +38,8 @@ aws:
   region: ap-northeast-2
   s3:
     bucket: ${AWS_S3_BUCKET:your-bucket-name}
-  accessKey: ${AWS_ACCESS_KEY:}
-  secretKey: ${AWS_SECRET_KEY:}
+  accessKey: ${AWS_ACCESS_KEY_ID}
+  secretKey: ${AWS_SECRET_ACCESS_KEY}
 
 codify:
   dev:
