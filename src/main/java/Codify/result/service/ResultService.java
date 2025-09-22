@@ -66,10 +66,8 @@ public class ResultService {
             throw new WeekNotFoundException();
         }
 
-        // Result 테이블에서 결과 조회
-        Result result = resultRepository.findByStudentFromIdAndStudentToIdAndAssignmentId(
-                studentFromId, studentToId, assignmentId
-        ).orElseThrow(() -> new ComparisonResultNotFoundException());
+        // Result 테이블에서 결과 조회 (양방향 검색)
+        Result result = findResultBidirectional(studentFromId, studentToId, assignmentId);
 
         // 각 학생별 표절된 코드 라인 정보 조회
         List<Codeline> student1Lines = codelineRepository.findByResultIdAndStudentId(
@@ -79,9 +77,13 @@ public class ResultService {
                 result.getId(), studentToId
         );
 
-        // 제출 정보 조회
-        SubmissionInfoService.SubmissionInfo submission1 = submissionInfoService.getSubmissionInfo(result.getSubmissionFromId());
-        SubmissionInfoService.SubmissionInfo submission2 = submissionInfoService.getSubmissionInfo(result.getSubmissionToId());
+        // 제출 정보 조회 (실제 DB 저장 순서 고려)
+        SubmissionInfoService.SubmissionInfo submission1 = submissionInfoService.getSubmissionInfo(
+                result.getStudentFromId().equals(studentFromId) ? result.getSubmissionFromId() : result.getSubmissionToId()
+        );
+        SubmissionInfoService.SubmissionInfo submission2 = submissionInfoService.getSubmissionInfo(
+                result.getStudentFromId().equals(studentFromId) ? result.getSubmissionToId() : result.getSubmissionFromId()
+        );
 
         // 표절 라인 변환
         List<Integer> lines1 = convertToLineNumbers(student1Lines);
