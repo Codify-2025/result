@@ -24,7 +24,7 @@ public class S3FileService {
 
     private final S3Client s3Client;
     
-    @Value("${aws.s3.bucket}")
+    @Value("${cloud.aws.s3.bucket}")
     private String bucketName;
 
     public List<String> getCodeFromS3(String s3Key) {
