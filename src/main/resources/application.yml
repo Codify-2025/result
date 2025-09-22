@@ -34,12 +34,17 @@ eureka:
     prefer-ip-address: true
 
 # AWS 설정
-aws:
-  region: ap-northeast-2
-  s3:
-    bucket: ${AWS_S3_BUCKET:your-bucket-name}
-  accessKey: ${AWS_ACCESS_KEY_ID}
-  secretKey: ${AWS_SECRET_ACCESS_KEY}
+cloud:
+  aws:
+    s3:
+      bucket: ${S3_BUCKET_NAME}
+    stack:
+      auto: false
+    region:
+      static: ${AWS_REGION:ap-northeast-2}
+    credentials:
+      access-key: ${AWS_ACCESS_KEY_ID}
+      secret-key: ${AWS_SECRET_ACCESS_KEY}
 
 codify:
   dev:
