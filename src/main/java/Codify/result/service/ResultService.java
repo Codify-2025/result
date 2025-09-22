@@ -89,9 +89,9 @@ public class ResultService {
         List<Integer> lines1 = convertToLineNumbers(student1Lines);
         List<Integer> lines2 = convertToLineNumbers(student2Lines);
 
-        // S3에서 표절된 라인의 코드만 조회
-        List<String> code1 = s3FileService.getSpecificLinesFromS3(submission1.getS3Key(), lines1);
-        List<String> code2 = s3FileService.getSpecificLinesFromS3(submission2.getS3Key(), lines2);
+        // S3에서 전체 코드 조회
+        List<String> code1 = s3FileService.getCodeFromS3(submission1.getS3Key());
+        List<String> code2 = s3FileService.getCodeFromS3(submission2.getS3Key());
 
         return CompareResponseDto.builder()
                 .student1(CompareResponseDto.StudentCompareDto.builder()
